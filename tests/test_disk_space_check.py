@@ -8,7 +8,6 @@ and respect HF_HOME via huggingface_hub.constants.HF_HUB_CACHE.
 
 from __future__ import annotations
 
-import os
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -106,7 +105,12 @@ class TestDiskSpaceCheck:
 
     def test_uses_hf_hub_cache_for_statvfs(self):
         """The probe must use HF_HUB_CACHE (respects HF_HOME), not the
-        hard-coded ~/.cache/huggingface."""
+        hard-coded ~/.cache/huggingface.
+
+        Asserts strictly on /Volumes — the HOME fallback only kicks in when
+        the walk-up loop runs out of ancestors, which would mask a
+        regression that drops the HF_HUB_CACHE pivot entirely.
+        """
         info = _make_info([int(2 * 1024**3)])
         seen_paths = []
 
@@ -130,9 +134,7 @@ class TestDiskSpaceCheck:
             _check_disk_space("mlx-community/Qwen3-0.6B-8bit")
 
         assert seen_paths, "statvfs was never called"
-        assert any(
-            "external" in p or p == "/Volumes/external" or p.startswith("/Volumes")
-            for p in seen_paths
-        ) or any(p.startswith(os.path.expanduser("~")) for p in seen_paths), (
-            f"statvfs probe path {seen_paths!r} didn't include HF_HUB_CACHE ancestor"
+        assert any("/Volumes" in p for p in seen_paths), (
+            f"statvfs probe path {seen_paths!r} didn't include HF_HUB_CACHE; "
+            "the HF_HOME pivot regressed and the probe fell back to $HOME."
         )

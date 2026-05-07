@@ -67,7 +67,9 @@ def _check_disk_space(model_name: str, force: bool = False) -> None:
 
         # statvfs needs an existing path; HF_HUB_CACHE may not exist yet on
         # a fresh install. Walk up to the first ancestor that does.
-        probe = HF_HUB_CACHE
+        # Resolve to absolute up front so a relative HF_HUB_CACHE doesn't
+        # short-circuit to CWD when an ancestor walk hits ".".
+        probe = os.path.abspath(HF_HUB_CACHE) if HF_HUB_CACHE else ""
         while probe and not os.path.exists(probe):
             parent = os.path.dirname(probe)
             if parent == probe:
@@ -485,6 +487,8 @@ def bench_command(args):
     from .engine_core import AsyncEngineCore, EngineConfig
     from .request import SamplingParams
     from .scheduler import SchedulerConfig
+
+    _check_disk_space(args.model, force=getattr(args, "force_disk_check", False))
 
     # Handle prefix cache flags
     enable_prefix_cache = args.enable_prefix_cache and not args.disable_prefix_cache
@@ -1266,6 +1270,15 @@ Examples:
     # Bench command
     bench_parser = subparsers.add_parser("bench", help="Run benchmark")
     bench_parser.add_argument("model", type=str, help="Model to benchmark")
+    bench_parser.add_argument(
+        "--force-disk-check",
+        action="store_true",
+        help=(
+            "Skip the pre-flight disk-space check that aborts when the model "
+            "is larger than free disk. Use only if you know the HF cache lives "
+            "on a different filesystem (e.g. external drive via HF_HOME)."
+        ),
+    )
     bench_parser.add_argument(
         "--num-prompts", type=int, default=10, help="Number of prompts"
     )
