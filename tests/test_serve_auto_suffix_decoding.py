@@ -111,6 +111,20 @@ def test_no_suffix_decoding_opts_out_of_auto_enable():
     assert args.suffix_decoding is False
 
 
+def test_enable_mtp_blocks_auto_suffix_decoding():
+    """If user explicitly chose MTP, the auto-apply must NOT flip on
+    suffix-decoding (the two are mutually exclusive — both monkey-patch
+    BatchGenerator step). Otherwise the mutual-exclusion check fires and
+    `serve` exits with an error after the user already declared intent.
+
+    Codex review #305 round 1 P2.
+    """
+    args = _args(enable_mtp=True)
+    cli._apply_alias_profile_to_args(args, _cfg(suffix_decoding_tier="agent"), _logger)
+    assert args.suffix_decoding is False
+    assert args.enable_mtp is True
+
+
 def test_already_enabled_remains_enabled_for_any_tier():
     """If user passed --suffix-decoding, the auto-apply must NOT toggle it
     off for any tier value (it would override explicit user intent)."""

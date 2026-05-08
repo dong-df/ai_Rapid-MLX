@@ -151,9 +151,15 @@ def _apply_alias_profile_to_args(args, auto_config, logger) -> None:
         logger.info(
             f"Auto-configured --reasoning-parser {auto_config.reasoning_parser}"
         )
+    # Auto-enable suffix-decoding only when no other spec-decode method
+    # was explicitly chosen. ``--enable-mtp`` is mutually exclusive with
+    # ``--suffix-decoding`` (both monkey-patch BatchGenerator step), so
+    # auto-flipping suffix on top of an explicit --enable-mtp would
+    # exit-with-error after the user already declared their intent.
     if (
         not args.suffix_decoding
         and not args.no_suffix_decoding
+        and not getattr(args, "enable_mtp", False)
         and auto_config.supports_spec_decode
         and auto_config.suffix_decoding_tier in ("agent", "structured")
     ):
